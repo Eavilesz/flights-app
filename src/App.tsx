@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+
+import Map from './components/Map';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import AppBar from '@mui/material/AppBar';
@@ -61,7 +63,6 @@ export default function GoogleFlights() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-
       <AppBar position="static" color="default" elevation={0}>
         <Toolbar>
           <Typography variant="h6" color="inherit" noWrap>
@@ -229,6 +230,7 @@ export default function GoogleFlights() {
             <Typography variant="h6" gutterBottom>
               Cheap flights
             </Typography>
+            <Map />
             <Paper elevation={2}>
               {[1, 2, 3].map((i) => (
                 <Card key={i} sx={{ mb: 2 }}>
