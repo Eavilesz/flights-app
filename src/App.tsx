@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import Map from './components/Map';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -11,12 +11,10 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Select from '@mui/material/Select';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Autocomplete from '@mui/material/Autocomplete';
 import Card from '@mui/material/Card';
@@ -30,7 +28,7 @@ import FlightLandIcon from '@mui/icons-material/FlightLand';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 
 const theme = createTheme({
   palette: {
@@ -51,13 +49,30 @@ const airports = [
   { label: 'Dubai (DXB)' },
 ];
 
+const cityButtons = ['London', 'Chicago', 'Rome', 'Paris'];
+
 export default function GoogleFlights() {
-  const [tabValue, setTabValue] = useState(0);
+  const [tripType, setTripType] = useState('');
+  const [passengers, setPassengers] = useState('');
+  const [cabinClass, setCabinClass] = useState('');
   const [departureDate, setDepartureDate] = useState<Dayjs | null>(null);
   const [returnDate, setReturnDate] = useState<Dayjs | null>(null);
+  const [selectedCity, setSelectedCity] = useState('London');
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+  const handleCityChange = (cityName: string) => {
+    setSelectedCity(cityName);
+  };
+
+  const handleTripTypeChange = (event: SelectChangeEvent) => {
+    setTripType(event.target.value as string);
+  };
+
+  const handlePassengersChange = (event: SelectChangeEvent) => {
+    setPassengers(event.target.value as string);
+  };
+
+  const handleClassChange = (event: SelectChangeEvent) => {
+    setCabinClass(event.target.value as string);
   };
 
   return (
@@ -68,11 +83,6 @@ export default function GoogleFlights() {
           <Typography variant="h6" color="inherit" noWrap>
             Flights App
           </Typography>
-          <Tabs value={tabValue} onChange={handleTabChange} sx={{ ml: 4 }}>
-            <Tab label="Flights" />
-            <Tab label="Hotels" />
-            <Tab label="Packages" />
-          </Tabs>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -86,14 +96,15 @@ export default function GoogleFlights() {
               <FormControl fullWidth>
                 <InputLabel id="trip-type-label">Trip</InputLabel>
                 <Select
+                  onChange={handleTripTypeChange}
                   labelId="trip-type-label"
                   id="trip-type"
-                  value="round"
+                  value={tripType}
                   label="Trip"
                 >
                   <MenuItem value="round">Round trip</MenuItem>
                   <MenuItem value="one">One way</MenuItem>
-                  <MenuItem value="multi">Multi-city</MenuItem>
+                  {/* <MenuItem value="multi">Multi-city</MenuItem> */}
                 </Select>
               </FormControl>
             </Grid>
@@ -101,9 +112,10 @@ export default function GoogleFlights() {
               <FormControl fullWidth>
                 <InputLabel id="passengers-label">Passengers</InputLabel>
                 <Select
+                  onChange={handlePassengersChange}
                   labelId="passengers-label"
                   id="passengers"
-                  value={1}
+                  value={passengers}
                   label="Passengers"
                 >
                   <MenuItem value={1}>1 passenger</MenuItem>
@@ -119,8 +131,9 @@ export default function GoogleFlights() {
                 <Select
                   labelId="cabin-class-label"
                   id="cabin-class"
-                  value="economy"
+                  value={cabinClass}
                   label="Cabin class"
+                  onChange={handleClassChange}
                 >
                   <MenuItem value="economy">Economy</MenuItem>
                   <MenuItem value="premium">Premium economy</MenuItem>
@@ -147,24 +160,26 @@ export default function GoogleFlights() {
                 )}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                options={airports}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="To"
-                    fullWidth
-                    InputProps={{
-                      ...params.InputProps,
-                      startAdornment: (
-                        <FlightLandIcon color="action" sx={{ mr: 1 }} />
-                      ),
-                    }}
-                  />
-                )}
-              />
-            </Grid>
+            {tripType === 'round' && (
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  options={airports}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="To"
+                      fullWidth
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <FlightLandIcon color="action" sx={{ mr: 1 }} />
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              </Grid>
+            )}
             <Grid item xs={12} sm={6}>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
@@ -188,48 +203,62 @@ export default function GoogleFlights() {
                 />
               </LocalizationProvider>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Return"
-                  value={returnDate}
-                  onChange={(newValue) => setReturnDate(newValue)}
-                  slots={{
-                    textField: (params) => (
-                      <TextField
-                        {...params}
-                        fullWidth
-                        InputProps={{
-                          ...params.InputProps,
-                          startAdornment: (
-                            <CalendarTodayIcon color="action" sx={{ mr: 1 }} />
-                          ),
-                        }}
-                      />
-                    ),
-                  }}
-                />
-              </LocalizationProvider>
-            </Grid>
-            {/* <Grid item xs={12}> */}
+            {tripType === 'round' && (
+              <Grid item xs={12} sm={6}>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Return"
+                    value={returnDate}
+                    onChange={(newValue) => setReturnDate(newValue)}
+                    slots={{
+                      textField: (params) => (
+                        <TextField
+                          {...params}
+                          fullWidth
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <CalendarTodayIcon
+                                color="action"
+                                sx={{ mr: 1 }}
+                              />
+                            ),
+                          }}
+                        />
+                      ),
+                    }}
+                  />
+                </LocalizationProvider>
+              </Grid>
+            )}
             <Button
               sx={{ mt: 3, mx: 'auto' }}
               variant="contained"
               size="large"
               startIcon={<SearchIcon />}
-              // fullWidth
             >
               Search flights
             </Button>
-            {/* </Grid> */}
           </Grid>
         </Paper>
 
         <Grid container spacing={4}>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
-              Cheap flights
+              {`Find cheap flights from ${selectedCity} to Anywhere`}
             </Typography>
+            <Grid item sx={{ mb: 2 }}>
+              {cityButtons.map((city) => (
+                <Button
+                  key={city}
+                  onClick={() => handleCityChange(city)}
+                  variant={city === selectedCity ? 'contained' : 'outlined'}
+                  sx={{ borderRadius: '3rem', ml: 1 }}
+                >
+                  {city}
+                </Button>
+              ))}
+            </Grid>
             <Map />
             <Paper elevation={2}>
               {[1, 2, 3].map((i) => (
@@ -272,22 +301,6 @@ export default function GoogleFlights() {
                 </Card>
               ))}
             </Paper>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom>
-              Price Graph
-            </Typography>
-            <Paper
-              elevation={2}
-              sx={{ height: 200, mb: 4, backgroundColor: 'grey.100' }}
-            />
-            <Typography variant="h6" gutterBottom>
-              Map View
-            </Typography>
-            <Paper
-              elevation={2}
-              sx={{ height: 200, backgroundColor: 'grey.100' }}
-            />
           </Grid>
         </Grid>
       </Container>
