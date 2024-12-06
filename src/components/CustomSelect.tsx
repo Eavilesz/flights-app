@@ -13,12 +13,12 @@ interface MenuItem {
 }
 
 interface CustomSelectProps {
-  value: string;
   setValue: Dispatch<SetStateAction<string>>;
+  menuItems: MenuItem[];
+  value: string;
   labelId: string;
   labelText: string;
   selectId: string;
-  menuItems: MenuItem[];
 }
 
 export const CustomSelect = ({

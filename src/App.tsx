@@ -1,15 +1,15 @@
-import {
-  useState,
-  ChangeEvent,
-  SyntheticEvent,
-  useEffect,
-  Dispatch,
-  SetStateAction,
-} from 'react';
+import { useState, SyntheticEvent } from 'react';
 import axios from 'axios';
 
-import Map from './components/Map';
 import { CustomSelect } from './components/CustomSelect';
+
+import { fetchAirports } from './lib/data';
+import { airportType, ProcessedItineraries } from './lib/definitions';
+import {
+  tripValues,
+  passengerValues,
+  cabinValues,
+} from './lib/placeholder-values';
 
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -21,7 +21,6 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
 import Autocomplete from '@mui/material/Autocomplete';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -36,9 +35,21 @@ import SearchIcon from '@mui/icons-material/Search';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Dayjs } from 'dayjs';
 
-interface airportData {
-  presentation: { title: string; suggestionTitle: string; subtitle: string };
-  navigation: {};
+export interface Itinerary {
+  price: { formatted: string };
+  legs: [
+    {
+      origin: { displayCode: string };
+      destination: { displayCode: string };
+      durationInMinutes: number;
+      stopCount: number;
+      departure: string;
+      arrival: string;
+      carriers: {
+        marketing: [{ logoUrl: string; name: string }];
+      };
+    }
+  ];
 }
 
 const theme = createTheme({
@@ -49,50 +60,23 @@ const theme = createTheme({
   },
 });
 
-const tripValues = [
-  { value: 'round', text: 'Round trip' },
-  { value: 'one', text: 'One Way' },
-];
-
-const passengerValues = [
-  { value: 1, text: '1 passenger' },
-  { value: 2, text: '2 passengers' },
-  { value: 3, text: '3 passengers' },
-  { value: 4, text: '4 passengers' },
-];
-
-const cabinValues = [
-  { value: 'economy', text: 'Economy' },
-  { value: 'premium', text: 'Premium' },
-  { value: 'business', text: 'Business' },
-  { value: 'first', text: 'First' },
-];
-
-const cityButtons = ['London', 'Chicago', 'Rome', 'Paris'];
-
 export default function GoogleFlights() {
-  const [tripType, setTripType] = useState('round');
-  const [passengers, setPassengers] = useState('');
-  const [cabinClass, setCabinClass] = useState('');
+  const [tripType, setTripType] = useState<string>('one');
+  const [passengers, setPassengers] = useState<string>('1');
+  const [cabinClass, setCabinClass] = useState<string>('economy');
   const [fromAirports, setFromAirports] = useState([]);
   const [toAirports, setToAirports] = useState([]);
-  const [fromAirport, setFromAirport] = useState<{
-    label: string;
-  } | null>(null);
-  const [toAirport, setToAirport] = useState<{
-    label: string;
-  } | null>(null);
+  const [fromAirport, setFromAirport] = useState<airportType | null>(null);
+  const [toAirport, setToAirport] = useState<airportType | null>(null);
   const [departureDate, setDepartureDate] = useState<Dayjs | null>(null);
   const [returnDate, setReturnDate] = useState<Dayjs | null>(null);
-  const [selectedCity, setSelectedCity] = useState('London');
-
-  const handleCityChange = (cityName: string) => {
-    setSelectedCity(cityName);
-  };
+  const [itineraryList, setItineraryList] = useState<
+    ProcessedItineraries[] | null
+  >(null);
 
   const handleFromAirportChange = (
     _event: SyntheticEvent,
-    value: { label: string } | null
+    value: airportType | null
   ) => {
     if (value === toAirport) setToAirport(null);
     setFromAirport(value);
@@ -100,24 +84,48 @@ export default function GoogleFlights() {
 
   const handleToAirportChange = (
     _event: SyntheticEvent,
-    value: { label: string } | null
+    value: airportType | null
   ) => {
     if (value === fromAirport) setFromAirport(null);
     setToAirport(value);
   };
 
-  const handleFromAirportQueryChange = async (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    setValue: Dispatch<SetStateAction<never[]>>
-  ) => {
-    const query = event.target.value;
+  function extractTime(dateString: string) {
+    const timePart = new Date(dateString).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return timePart;
+  }
+
+  const handleSubmit = async () => {
+    if (!fromAirport || !departureDate) return;
+
+    const formatedDepartureDate = `${departureDate.year()}-${
+      departureDate.month() + 1
+    }-${departureDate.date()}`;
+
+    const formatedReturnDate = returnDate
+      ? `${returnDate.year()}-${returnDate.month() + 1}-${returnDate.date()}`
+      : null;
 
     const options = {
       method: 'GET',
-      url: 'https://sky-scrapper.p.rapidapi.com/api/v1/flights/searchAirport',
+      url: 'https://sky-scrapper.p.rapidapi.com/api/v2/flights/searchFlights',
       params: {
-        query: query,
-        locale: 'en-US',
+        originSkyId: fromAirport.skyId,
+        destinationSkyId: toAirport ? toAirport.skyId : null,
+        originEntityId: fromAirport.entityId,
+        destinationEntityId: toAirport ? toAirport.entityId : null,
+        date: formatedDepartureDate,
+        returnDate: formatedReturnDate,
+        cabinClass: cabinClass,
+        adults: passengers,
+        sortBy: 'best',
+        currency: 'USD',
+        market: 'en-US',
+        countryCode: 'US',
       },
       headers: {
         'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY,
@@ -127,22 +135,29 @@ export default function GoogleFlights() {
 
     try {
       const response = await axios.request(options);
-      const data = response.data?.data;
+      const itineraries = response.data.data.itineraries;
 
-      setValue(
-        data?.map((airport: airportData) => {
-          return { label: airport.presentation.suggestionTitle };
-        })
-      );
+      const processedItineraries = itineraries.map((itinerary: Itinerary) => {
+        const legs = itinerary.legs[0];
+
+        return {
+          price: itinerary.price.formatted,
+          originCode: legs.origin.displayCode,
+          destinationCode: legs.destination.displayCode,
+          durationInMinutes: legs.durationInMinutes,
+          departureTime: extractTime(legs.departure),
+          arrivalTime: extractTime(legs.arrival),
+          logoUrl: legs.carriers.marketing[0].logoUrl,
+          stopCount: legs.stopCount,
+          airlineName: legs.carriers.marketing[0].name,
+        };
+      });
+
+      setItineraryList(processedItineraries);
     } catch (error) {
       console.error(error);
     }
   };
-
-  useEffect(() => {
-    console.log('departureDate:', departureDate);
-    console.log('returnDate:', returnDate);
-  }, [departureDate, returnDate]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -197,9 +212,7 @@ export default function GoogleFlights() {
                 renderInput={(params) => (
                   <TextField
                     value={fromAirport}
-                    onChange={(event) =>
-                      handleFromAirportQueryChange(event, setFromAirports)
-                    }
+                    onChange={(event) => fetchAirports(event, setFromAirports)}
                     {...params}
                     label="From"
                     fullWidth
@@ -215,7 +228,6 @@ export default function GoogleFlights() {
             </Grid>
 
             {/* To Airport */}
-
             <Grid item xs={12} sm={6}>
               <Autocomplete
                 options={toAirports}
@@ -224,9 +236,7 @@ export default function GoogleFlights() {
                 renderInput={(params) => (
                   <TextField
                     value={toAirport}
-                    onChange={(event) =>
-                      handleFromAirportQueryChange(event, setToAirports)
-                    }
+                    onChange={(event) => fetchAirports(event, setToAirports)}
                     {...params}
                     label="To"
                     fullWidth
@@ -241,6 +251,7 @@ export default function GoogleFlights() {
               />
             </Grid>
 
+            {/* Departure date */}
             <Grid item xs={12} sm={6}>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
@@ -265,6 +276,7 @@ export default function GoogleFlights() {
               </LocalizationProvider>
             </Grid>
 
+            {/* Return Date */}
             {tripType === 'round' && (
               <Grid item xs={12} sm={6}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -294,6 +306,7 @@ export default function GoogleFlights() {
               </Grid>
             )}
             <Button
+              onClick={handleSubmit}
               sx={{ mt: 3, mx: 'auto' }}
               variant="contained"
               size="large"
@@ -307,61 +320,46 @@ export default function GoogleFlights() {
         <Grid container spacing={4}>
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
-              {`Find cheap flights from ${selectedCity} to Anywhere`}
+              {`Find cheap flights to Anywhere`}
             </Typography>
-            <Grid item sx={{ mb: 2 }}>
-              {cityButtons.map((city) => (
-                <Button
-                  key={city}
-                  onClick={() => handleCityChange(city)}
-                  variant={city === selectedCity ? 'contained' : 'outlined'}
-                  sx={{ borderRadius: '3rem', ml: 1 }}
-                >
-                  {city}
-                </Button>
-              ))}
-            </Grid>
-            <Map />
             <Paper elevation={2}>
-              {[1, 2, 3].map((i) => (
-                <Card key={i} sx={{ mb: 2 }}>
-                  <CardContent>
-                    <Grid container alignItems="center" spacing={2}>
-                      <Grid item>
-                        <Box
-                          sx={{
-                            width: 50,
-                            height: 50,
-                            backgroundColor: 'grey.200',
-                            borderRadius: 1,
-                          }}
-                        />
+              {itineraryList &&
+                itineraryList.map((item, index) => (
+                  <Card key={index} sx={{ mb: 2 }}>
+                    <CardContent>
+                      <Grid container alignItems="center" spacing={2}>
+                        <Grid item>
+                          <img
+                            style={{ width: '50px' }}
+                            src={item.logoUrl}
+                            alt="Airline logo."
+                          />
+                        </Grid>
+                        <Grid item xs>
+                          <Typography variant="subtitle1">{`${item.originCode} → ${item.destinationCode}`}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {`${item.airlineName} • ${item.durationInMinutes} minutes • ${item.stopCount} stops`}
+                          </Typography>
+                          <Typography variant="body2">
+                            {`Departs: ${item.departureTime} • Arrives:  ${item.arrivalTime}`}
+                          </Typography>
+                        </Grid>
+                        <Grid item>
+                          <Typography variant="h6">{item.price}</Typography>
+                        </Grid>
                       </Grid>
-                      <Grid item xs>
-                        <Typography variant="subtitle1">JFK → LHR</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Delta Airlines • 7h 25m • Direct
-                        </Typography>
-                        <Typography variant="body2">
-                          Departs: 9:30 AM • Arrives: 4:55 PM
-                        </Typography>
-                      </Grid>
-                      <Grid item>
-                        <Typography variant="h6">$749</Typography>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                  <CardActions>
-                    <Button
-                      size="small"
-                      color="primary"
-                      endIcon={<ArrowForwardIcon />}
-                    >
-                      Select
-                    </Button>
-                  </CardActions>
-                </Card>
-              ))}
+                    </CardContent>
+                    <CardActions>
+                      <Button
+                        size="small"
+                        color="primary"
+                        endIcon={<ArrowForwardIcon />}
+                      >
+                        Select
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
             </Paper>
           </Grid>
         </Grid>
