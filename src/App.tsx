@@ -1,6 +1,16 @@
-import { useState } from 'react';
+import {
+  useState,
+  ChangeEvent,
+  SyntheticEvent,
+  useEffect,
+  Dispatch,
+  SetStateAction,
+} from 'react';
+import axios from 'axios';
 
 import Map from './components/Map';
+import { CustomSelect } from './components/CustomSelect';
+
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import AppBar from '@mui/material/AppBar';
@@ -11,10 +21,6 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import Box from '@mui/material/Box';
 import Autocomplete from '@mui/material/Autocomplete';
 import Card from '@mui/material/Card';
@@ -30,6 +36,11 @@ import SearchIcon from '@mui/icons-material/Search';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Dayjs } from 'dayjs';
 
+interface airportData {
+  presentation: { title: string; suggestionTitle: string; subtitle: string };
+  navigation: {};
+}
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -38,23 +49,39 @@ const theme = createTheme({
   },
 });
 
-const airports = [
-  { label: 'New York (JFK)' },
-  { label: 'Los Angeles (LAX)' },
-  { label: 'Chicago (ORD)' },
-  { label: 'San Francisco (SFO)' },
-  { label: 'London (LHR)' },
-  { label: 'Paris (CDG)' },
-  { label: 'Tokyo (HND)' },
-  { label: 'Dubai (DXB)' },
+const tripValues = [
+  { value: 'round', text: 'Round trip' },
+  { value: 'one', text: 'One Way' },
+];
+
+const passengerValues = [
+  { value: 1, text: '1 passenger' },
+  { value: 2, text: '2 passengers' },
+  { value: 3, text: '3 passengers' },
+  { value: 4, text: '4 passengers' },
+];
+
+const cabinValues = [
+  { value: 'economy', text: 'Economy' },
+  { value: 'premium', text: 'Premium' },
+  { value: 'business', text: 'Business' },
+  { value: 'first', text: 'First' },
 ];
 
 const cityButtons = ['London', 'Chicago', 'Rome', 'Paris'];
 
 export default function GoogleFlights() {
-  const [tripType, setTripType] = useState('');
+  const [tripType, setTripType] = useState('round');
   const [passengers, setPassengers] = useState('');
   const [cabinClass, setCabinClass] = useState('');
+  const [fromAirports, setFromAirports] = useState([]);
+  const [toAirports, setToAirports] = useState([]);
+  const [fromAirport, setFromAirport] = useState<{
+    label: string;
+  } | null>(null);
+  const [toAirport, setToAirport] = useState<{
+    label: string;
+  } | null>(null);
   const [departureDate, setDepartureDate] = useState<Dayjs | null>(null);
   const [returnDate, setReturnDate] = useState<Dayjs | null>(null);
   const [selectedCity, setSelectedCity] = useState('London');
@@ -63,17 +90,59 @@ export default function GoogleFlights() {
     setSelectedCity(cityName);
   };
 
-  const handleTripTypeChange = (event: SelectChangeEvent) => {
-    setTripType(event.target.value as string);
+  const handleFromAirportChange = (
+    _event: SyntheticEvent,
+    value: { label: string } | null
+  ) => {
+    if (value === toAirport) setToAirport(null);
+    setFromAirport(value);
   };
 
-  const handlePassengersChange = (event: SelectChangeEvent) => {
-    setPassengers(event.target.value as string);
+  const handleToAirportChange = (
+    _event: SyntheticEvent,
+    value: { label: string } | null
+  ) => {
+    if (value === fromAirport) setFromAirport(null);
+    setToAirport(value);
   };
 
-  const handleClassChange = (event: SelectChangeEvent) => {
-    setCabinClass(event.target.value as string);
+  const handleFromAirportQueryChange = async (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    setValue: Dispatch<SetStateAction<never[]>>
+  ) => {
+    const query = event.target.value;
+
+    const options = {
+      method: 'GET',
+      url: 'https://sky-scrapper.p.rapidapi.com/api/v1/flights/searchAirport',
+      params: {
+        query: query,
+        locale: 'en-US',
+      },
+      headers: {
+        'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY,
+        'x-rapidapi-host': 'sky-scrapper.p.rapidapi.com',
+      },
+    };
+
+    try {
+      const response = await axios.request(options);
+      const data = response.data?.data;
+
+      setValue(
+        data?.map((airport: airportData) => {
+          return { label: airport.presentation.suggestionTitle };
+        })
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
+
+  useEffect(() => {
+    console.log('departureDate:', departureDate);
+    console.log('returnDate:', returnDate);
+  }, [departureDate, returnDate]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -92,61 +161,45 @@ export default function GoogleFlights() {
         </Typography>
         <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel id="trip-type-label">Trip</InputLabel>
-                <Select
-                  onChange={handleTripTypeChange}
-                  labelId="trip-type-label"
-                  id="trip-type"
-                  value={tripType}
-                  label="Trip"
-                >
-                  <MenuItem value="round">Round trip</MenuItem>
-                  <MenuItem value="one">One way</MenuItem>
-                  {/* <MenuItem value="multi">Multi-city</MenuItem> */}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel id="passengers-label">Passengers</InputLabel>
-                <Select
-                  onChange={handlePassengersChange}
-                  labelId="passengers-label"
-                  id="passengers"
-                  value={passengers}
-                  label="Passengers"
-                >
-                  <MenuItem value={1}>1 passenger</MenuItem>
-                  <MenuItem value={2}>2 passengers</MenuItem>
-                  <MenuItem value={3}>3 passengers</MenuItem>
-                  <MenuItem value={4}>4 passengers</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel id="cabin-class-label">Cabin class</InputLabel>
-                <Select
-                  labelId="cabin-class-label"
-                  id="cabin-class"
-                  value={cabinClass}
-                  label="Cabin class"
-                  onChange={handleClassChange}
-                >
-                  <MenuItem value="economy">Economy</MenuItem>
-                  <MenuItem value="premium">Premium economy</MenuItem>
-                  <MenuItem value="business">Business</MenuItem>
-                  <MenuItem value="first">First</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            <CustomSelect
+              setValue={setTripType}
+              value={tripType}
+              labelId="trip-type-label"
+              labelText="Trip"
+              selectId="trip-type"
+              menuItems={tripValues}
+            />
+
+            <CustomSelect
+              setValue={setPassengers}
+              value={passengers}
+              labelId="passengers-label"
+              labelText="Passengers"
+              selectId="passengers"
+              menuItems={passengerValues}
+            />
+
+            <CustomSelect
+              setValue={setCabinClass}
+              value={cabinClass}
+              labelId="cabin-class-label"
+              labelText="Cabin class"
+              selectId="cabin-class"
+              menuItems={cabinValues}
+            />
+
+            {/* From Airport */}
             <Grid item xs={12} sm={6}>
               <Autocomplete
-                options={airports}
+                value={fromAirport}
+                onChange={handleFromAirportChange}
+                options={fromAirports}
                 renderInput={(params) => (
                   <TextField
+                    value={fromAirport}
+                    onChange={(event) =>
+                      handleFromAirportQueryChange(event, setFromAirports)
+                    }
                     {...params}
                     label="From"
                     fullWidth
@@ -160,26 +213,34 @@ export default function GoogleFlights() {
                 )}
               />
             </Grid>
-            {tripType === 'round' && (
-              <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  options={airports}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="To"
-                      fullWidth
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <FlightLandIcon color="action" sx={{ mr: 1 }} />
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-            )}
+
+            {/* To Airport */}
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                options={toAirports}
+                value={toAirport}
+                onChange={handleToAirportChange}
+                renderInput={(params) => (
+                  <TextField
+                    value={toAirport}
+                    onChange={(event) =>
+                      handleFromAirportQueryChange(event, setToAirports)
+                    }
+                    {...params}
+                    label="To"
+                    fullWidth
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <FlightLandIcon color="action" sx={{ mr: 1 }} />
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
             <Grid item xs={12} sm={6}>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
@@ -203,6 +264,7 @@ export default function GoogleFlights() {
                 />
               </LocalizationProvider>
             </Grid>
+
             {tripType === 'round' && (
               <Grid item xs={12} sm={6}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
