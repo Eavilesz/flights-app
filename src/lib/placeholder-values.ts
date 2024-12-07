@@ -3,6 +3,24 @@ export const tripValues = [
   { value: 'one', text: 'One Way' },
 ];
 
+export const mockedAirports = [
+  {
+    label: 'GYE',
+    skyId: 'skyId',
+    entityId: 'entity ID',
+  },
+  {
+    label: 'Cuen',
+    skyId: 'skyId',
+    entityId: 'entity ID',
+  },
+  {
+    label: 'UIO',
+    skyId: 'skyId',
+    entityId: 'entity ID',
+  },
+];
+
 export const passengerValues = [
   { value: 1, text: '1 passenger' },
   { value: 2, text: '2 passengers' },

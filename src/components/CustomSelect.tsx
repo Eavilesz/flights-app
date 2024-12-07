@@ -19,6 +19,7 @@ interface CustomSelectProps {
   labelId: string;
   labelText: string;
   selectId: string;
+  disabled?: boolean;
 }
 
 export const CustomSelect = ({
@@ -28,6 +29,7 @@ export const CustomSelect = ({
   labelText,
   selectId,
   menuItems,
+  disabled,
 }: CustomSelectProps) => {
   const handleValueChange = (event: SelectChangeEvent) => {
     setValue(event.target.value as string);
@@ -35,7 +37,7 @@ export const CustomSelect = ({
 
   return (
     <Grid item xs={12} sm={4}>
-      <FormControl fullWidth>
+      <FormControl fullWidth disabled={disabled}>
         <InputLabel id={labelId}>{labelText}</InputLabel>
         <Select
           onChange={handleValueChange}

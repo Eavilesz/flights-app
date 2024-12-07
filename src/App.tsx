@@ -1,10 +1,23 @@
-import { useState, SyntheticEvent } from 'react';
+import {
+  useState,
+  useCallback,
+  SyntheticEvent,
+  ChangeEvent,
+  Dispatch,
+  SetStateAction,
+} from 'react';
 import axios from 'axios';
+
+import debounce from 'just-debounce-it';
 
 import { CustomSelect } from './components/CustomSelect';
 
 import { fetchAirports } from './lib/data';
-import { airportType, ProcessedItineraries } from './lib/definitions';
+import {
+  AirportType,
+  ProcessedItineraries,
+  Itinerary,
+} from './lib/definitions';
 import {
   tripValues,
   passengerValues,
@@ -25,6 +38,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardActions from '@mui/material/CardActions';
+import Link from '@mui/material/Link';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -33,24 +47,8 @@ import FlightLandIcon from '@mui/icons-material/FlightLand';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { CircularProgress } from '@mui/material';
 import { Dayjs } from 'dayjs';
-
-export interface Itinerary {
-  price: { formatted: string };
-  legs: [
-    {
-      origin: { displayCode: string };
-      destination: { displayCode: string };
-      durationInMinutes: number;
-      stopCount: number;
-      departure: string;
-      arrival: string;
-      carriers: {
-        marketing: [{ logoUrl: string; name: string }];
-      };
-    }
-  ];
-}
 
 const theme = createTheme({
   palette: {
@@ -66,13 +64,15 @@ export default function GoogleFlights() {
   const [cabinClass, setCabinClass] = useState<string>('economy');
   const [fromAirports, setFromAirports] = useState([]);
   const [toAirports, setToAirports] = useState([]);
-  const [fromAirport, setFromAirport] = useState<airportType | null>(null);
-  const [toAirport, setToAirport] = useState<airportType | null>(null);
+  const [fromAirport, setFromAirport] = useState<AirportType | null>(null);
+  const [toAirport, setToAirport] = useState<AirportType | null>(null);
   const [departureDate, setDepartureDate] = useState<Dayjs | null>(null);
   const [returnDate, setReturnDate] = useState<Dayjs | null>(null);
   const [itineraryList, setItineraryList] = useState<
     ProcessedItineraries[] | null
   >(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   const [errorMessages, setErrorMessages] = useState({
     fromAirport: '',
@@ -113,7 +113,7 @@ export default function GoogleFlights() {
 
   const handleFromAirportChange = (
     _event: SyntheticEvent,
-    value: airportType | null
+    value: AirportType | null
   ) => {
     if (value === toAirport) setToAirport(null);
     setFromAirport(value);
@@ -121,7 +121,7 @@ export default function GoogleFlights() {
 
   const handleToAirportChange = (
     _event: SyntheticEvent,
-    value: airportType | null
+    value: AirportType | null
   ) => {
     if (value === fromAirport) setFromAirport(null);
     setToAirport(value);
@@ -138,6 +138,8 @@ export default function GoogleFlights() {
 
   const handleSubmit = async () => {
     if (!validateFields()) return;
+    setIsLoading(true);
+    setIsSubmitted(true);
 
     const formatedDepartureDate = departureDate
       ? `${departureDate.year()}-${
@@ -193,19 +195,47 @@ export default function GoogleFlights() {
       });
 
       setItineraryList(processedItineraries);
+      setIsLoading(false);
     } catch (error) {
+      setIsLoading(false);
       console.error(error);
     }
   };
+
+  // For fetching only when the user stops typing
+  const debouncedFetchAirports = useCallback(
+    debounce(
+      (
+        event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+        setvalue: Dispatch<SetStateAction<never[]>>
+      ) => {
+        fetchAirports(event, setvalue);
+      },
+      200
+    ),
+    []
+  );
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppBar position="static" color="default" elevation={0}>
         <Toolbar>
-          <Typography variant="h6" color="inherit" noWrap>
-            Flights App
-          </Typography>
+          <Link
+            href="https://eaviles-portfolio.vercel.app/en"
+            underline="hover"
+            target="_blank"
+            rel="noopener"
+          >
+            <Typography
+              sx={{ fontWeight: '900', fontStyle: 'italic' }}
+              fontSize={30}
+              color="#2463ec"
+              noWrap
+            >
+              {'<EAV>'}
+            </Typography>
+          </Link>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -222,6 +252,7 @@ export default function GoogleFlights() {
               labelText="Trip"
               selectId="trip-type"
               menuItems={tripValues}
+              disabled
             />
 
             <CustomSelect
@@ -247,11 +278,13 @@ export default function GoogleFlights() {
               <Autocomplete
                 value={fromAirport}
                 onChange={handleFromAirportChange}
-                options={fromAirports}
+                options={fromAirports || []}
                 renderInput={(params) => (
                   <TextField
                     value={fromAirport}
-                    onChange={(event) => fetchAirports(event, setFromAirports)}
+                    onChange={(event) =>
+                      debouncedFetchAirports(event, setFromAirports)
+                    }
                     {...params}
                     label="From"
                     fullWidth
@@ -271,13 +304,15 @@ export default function GoogleFlights() {
             {/* To Airport */}
             <Grid item xs={12} sm={6}>
               <Autocomplete
-                options={toAirports}
+                options={toAirports || []}
                 value={toAirport}
                 onChange={handleToAirportChange}
                 renderInput={(params) => (
                   <TextField
                     value={toAirport}
-                    onChange={(event) => fetchAirports(event, setToAirports)}
+                    onChange={(event) =>
+                      debouncedFetchAirports(event, setToAirports)
+                    }
                     {...params}
                     label="To"
                     fullWidth
@@ -352,9 +387,11 @@ export default function GoogleFlights() {
                 </LocalizationProvider>
               </Grid>
             )}
+          </Grid>
+          <Grid item xs={12} sm={6} sx={{ textAlign: 'center' }}>
             <Button
               onClick={handleSubmit}
-              sx={{ mt: 3, mx: 'auto' }}
+              sx={{ mt: 3 }}
               variant="contained"
               size="large"
               startIcon={<SearchIcon />}
@@ -364,14 +401,32 @@ export default function GoogleFlights() {
           </Grid>
         </Paper>
 
-        <Grid container spacing={4}>
-          <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom>
-              {`Find cheap flights to Anywhere`}
+        {itineraryList && itineraryList?.length < 1 && isSubmitted && (
+          <>
+            <Typography gutterBottom>
+              Oops! We couldn't find any flights matching your search.
             </Typography>
-            <Paper elevation={2}>
-              {itineraryList &&
-                itineraryList.map((item, index) => (
+            <Typography>
+              Try changing your dates, destination, or other search options to
+              explore more results.
+            </Typography>
+          </>
+        )}
+
+        {isLoading && (
+          <Grid container>
+            <CircularProgress sx={{ mx: 'auto' }} size={70} />
+          </Grid>
+        )}
+
+        {itineraryList && itineraryList.length > 0 && (
+          <Grid container spacing={4}>
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Find cheap flights to Anywhere
+              </Typography>
+              <Paper elevation={2}>
+                {itineraryList?.map((item, index) => (
                   <Card key={index} sx={{ mb: 2 }}>
                     <CardContent>
                       <Grid container alignItems="center" spacing={2}>
@@ -407,9 +462,10 @@ export default function GoogleFlights() {
                     </CardActions>
                   </Card>
                 ))}
-            </Paper>
+              </Paper>
+            </Grid>
           </Grid>
-        </Grid>
+        )}
       </Container>
     </ThemeProvider>
   );

@@ -1,13 +1,17 @@
 import { ChangeEvent, Dispatch, SetStateAction } from 'react';
+import { AirportData } from './definitions';
 import axios from 'axios';
-
-import { airportData } from './definitions';
 
 export const fetchAirports = async (
   event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   setValue: Dispatch<SetStateAction<never[]>>
 ) => {
-  const query = event.target.value;
+  const query = event.target.value.trim();
+
+  if (!query) {
+    setValue([]);
+    return;
+  }
 
   const options = {
     method: 'GET',
@@ -21,13 +25,14 @@ export const fetchAirports = async (
       'x-rapidapi-host': 'sky-scrapper.p.rapidapi.com',
     },
   };
+  console.log('FETCHING');
 
   try {
     const response = await axios.request(options);
     const data = response.data?.data;
 
     setValue(
-      data?.map((airport: airportData) => {
+      data?.map((airport: AirportData) => {
         return {
           label: airport.presentation.suggestionTitle,
           skyId: airport.navigation.relevantFlightParams.skyId,
