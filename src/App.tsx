@@ -74,6 +74,43 @@ export default function GoogleFlights() {
     ProcessedItineraries[] | null
   >(null);
 
+  const [errorMessages, setErrorMessages] = useState({
+    fromAirport: '',
+    toAirport: '',
+    departureDate: '',
+    returnDate: '',
+  });
+
+  const validateFields = (): boolean => {
+    const errors = {
+      fromAirport: '',
+      toAirport: '',
+      departureDate: '',
+      returnDate: '',
+    };
+
+    if (!fromAirport) {
+      errors.fromAirport = 'Please select a departure airport.';
+    }
+
+    if (!toAirport) {
+      errors.toAirport = 'Please select a destination airport.';
+    }
+
+    if (!departureDate) {
+      errors.departureDate = 'Please select a departure date.';
+    }
+
+    if (tripType === 'round' && !returnDate) {
+      errors.returnDate = 'Please select a date for round trips.';
+    }
+
+    setErrorMessages(errors);
+
+    // Check if any error messages exists
+    return Object.values(errors).every((message) => !message);
+  };
+
   const handleFromAirportChange = (
     _event: SyntheticEvent,
     value: airportType | null
@@ -100,11 +137,13 @@ export default function GoogleFlights() {
   }
 
   const handleSubmit = async () => {
-    if (!fromAirport || !departureDate) return;
+    if (!validateFields()) return;
 
-    const formatedDepartureDate = `${departureDate.year()}-${
-      departureDate.month() + 1
-    }-${departureDate.date()}`;
+    const formatedDepartureDate = departureDate
+      ? `${departureDate.year()}-${
+          departureDate.month() + 1
+        }-${departureDate.date()}`
+      : null;
 
     const formatedReturnDate = returnDate
       ? `${returnDate.year()}-${returnDate.month() + 1}-${returnDate.date()}`
@@ -114,9 +153,9 @@ export default function GoogleFlights() {
       method: 'GET',
       url: 'https://sky-scrapper.p.rapidapi.com/api/v2/flights/searchFlights',
       params: {
-        originSkyId: fromAirport.skyId,
+        originSkyId: fromAirport?.skyId,
         destinationSkyId: toAirport ? toAirport.skyId : null,
-        originEntityId: fromAirport.entityId,
+        originEntityId: fromAirport?.entityId,
         destinationEntityId: toAirport ? toAirport.entityId : null,
         date: formatedDepartureDate,
         returnDate: formatedReturnDate,
@@ -135,7 +174,7 @@ export default function GoogleFlights() {
 
     try {
       const response = await axios.request(options);
-      const itineraries = response.data.data.itineraries;
+      const itineraries = response.data.data?.itineraries;
 
       const processedItineraries = itineraries.map((itinerary: Itinerary) => {
         const legs = itinerary.legs[0];
@@ -216,6 +255,8 @@ export default function GoogleFlights() {
                     {...params}
                     label="From"
                     fullWidth
+                    error={!!errorMessages.fromAirport}
+                    helperText={errorMessages.fromAirport}
                     InputProps={{
                       ...params.InputProps,
                       startAdornment: (
@@ -240,6 +281,8 @@ export default function GoogleFlights() {
                     {...params}
                     label="To"
                     fullWidth
+                    error={!!errorMessages.toAirport}
+                    helperText={errorMessages.toAirport}
                     InputProps={{
                       ...params.InputProps,
                       startAdornment: (
@@ -263,6 +306,8 @@ export default function GoogleFlights() {
                       <TextField
                         {...params}
                         fullWidth
+                        error={!!errorMessages.departureDate}
+                        helperText={errorMessages.departureDate}
                         InputProps={{
                           ...params.InputProps,
                           startAdornment: (
@@ -289,6 +334,8 @@ export default function GoogleFlights() {
                         <TextField
                           {...params}
                           fullWidth
+                          error={!!errorMessages.returnDate}
+                          helperText={errorMessages.returnDate}
                           InputProps={{
                             ...params.InputProps,
                             startAdornment: (
@@ -330,7 +377,7 @@ export default function GoogleFlights() {
                       <Grid container alignItems="center" spacing={2}>
                         <Grid item>
                           <img
-                            style={{ width: '50px' }}
+                            style={{ width: '35px' }}
                             src={item.logoUrl}
                             alt="Airline logo."
                           />
