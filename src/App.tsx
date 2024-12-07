@@ -211,7 +211,7 @@ export default function GoogleFlights() {
       ) => {
         fetchAirports(event, setvalue);
       },
-      200
+      100
     ),
     []
   );
@@ -451,7 +451,7 @@ export default function GoogleFlights() {
                         </Grid>
                       </Grid>
                     </CardContent>
-                    <CardActions>
+                    {/* <CardActions>
                       <Button
                         size="small"
                         color="primary"
@@ -459,7 +459,7 @@ export default function GoogleFlights() {
                       >
                         Select
                       </Button>
-                    </CardActions>
+                    </CardActions> */}
                   </Card>
                 ))}
               </Paper>
