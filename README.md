@@ -1,50 +1,70 @@
-# React + TypeScript + Vite
+# Flight Search Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+This Flight Search Application is a modern and responsive tool that allows users to search for flights between two airports. It leverages the **Sky-Scrapper API** from RapidAPI for real-time airport lookups and flight data retrieval. The app provides a smooth user experience with validations for input fields, debouncing to optimize API calls, and visually appealing designs powered by **Material UI**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- **Airport Search**: Dynamically search for airports in the "From" and "To" fields using the Sky-Scrapper API.
+- **Flight Search**: Retrieve available flights based on user input for airports and dates.
+- **Input Validation**: Ensures valid data for all input fields, including date range validation.
+- **Debouncing**: Reduces API call frequency by introducing a delay between user input and API fetch.
+- **Material UI Styling**: Elegant and responsive user interface.
+- **PNPM Initialization**: Efficient dependency management and fast builds.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+---
 
-- Configure the top-level `parserOptions` property like this:
+## Technologies Used
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+- **React**: Framework for building the user interface.
+- **Material UI**: Library for pre-styled React components.
+- **Sky-Scrapper API**: API for airport and flight data.
+- **PNPM**: Package manager for project initialization and dependency management.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Make sure you have the following installed:
+
+- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [PNPM](https://pnpm.io/) (v7+)
+
+### Installation
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/your-username/flight-search-app.git
+   cd flight-search-app
+   pnpm install
+   ```
+
+1. **Set up the API Key:**
+
+- Visit the [Sky-Scrapper API](https://rapidapi.com/apiheya/api/sky-scrapper) on RapidAPI.
+
+- Obtain your API key.
+
+- Create a .env file in the root directory and add the following
+
+```
+VITE_RAPIDAPI_KEY=your_api_key_here
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## Running the application
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+1. Start the development server:
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```
+pnpm start
+```
+
+2. Open your browser to navigate to:
+
+```
+http://localhost:3000
 ```
