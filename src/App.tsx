@@ -5,6 +5,7 @@ import {
   ChangeEvent,
   Dispatch,
   SetStateAction,
+  Fragment,
 } from 'react';
 import axios from 'axios';
 
@@ -37,7 +38,6 @@ import Button from '@mui/material/Button';
 import Autocomplete from '@mui/material/Autocomplete';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
 import Link from '@mui/material/Link';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -46,7 +46,6 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import FlightLandIcon from '@mui/icons-material/FlightLand';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import SearchIcon from '@mui/icons-material/Search';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { CircularProgress } from '@mui/material';
 import { Dayjs } from 'dayjs';
 
@@ -72,6 +71,9 @@ export default function GoogleFlights() {
     ProcessedItineraries[] | null
   >(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFromAirportLoading, setIsFromAirportLoading] =
+    useState<boolean>(false);
+  const [isToAirportLoading, setIsToAirportLoading] = useState<boolean>(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   const [errorMessages, setErrorMessages] = useState({
@@ -115,15 +117,15 @@ export default function GoogleFlights() {
     _event: SyntheticEvent,
     value: AirportType | null
   ) => {
-    if (value === toAirport) setToAirport(null);
     setFromAirport(value);
+    if (value?.label === toAirport?.label) setToAirport(null);
   };
 
   const handleToAirportChange = (
     _event: SyntheticEvent,
     value: AirportType | null
   ) => {
-    if (value === fromAirport) setFromAirport(null);
+    if (value?.label === fromAirport?.label) setFromAirport(null);
     setToAirport(value);
   };
 
@@ -207,9 +209,10 @@ export default function GoogleFlights() {
     debounce(
       (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-        setvalue: Dispatch<SetStateAction<never[]>>
+        setvalue: Dispatch<SetStateAction<never[]>>,
+        setIsAirportLoading: Dispatch<SetStateAction<boolean>>
       ) => {
-        fetchAirports(event, setvalue);
+        fetchAirports(event, setvalue, setIsAirportLoading);
       },
       100
     ),
@@ -219,6 +222,7 @@ export default function GoogleFlights() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+
       <AppBar position="static" color="default" elevation={0}>
         <Toolbar>
           <Link
@@ -278,12 +282,21 @@ export default function GoogleFlights() {
               <Autocomplete
                 value={fromAirport}
                 onChange={handleFromAirportChange}
-                options={fromAirports || []}
+                options={
+                  fromAirports.filter(
+                    (airport: AirportType) => airport.label !== toAirport?.label
+                  ) || []
+                }
+                loading={isFromAirportLoading}
                 renderInput={(params) => (
                   <TextField
                     value={fromAirport}
                     onChange={(event) =>
-                      debouncedFetchAirports(event, setFromAirports)
+                      debouncedFetchAirports(
+                        event,
+                        setFromAirports,
+                        setIsFromAirportLoading
+                      )
                     }
                     {...params}
                     label="From"
@@ -295,6 +308,14 @@ export default function GoogleFlights() {
                       startAdornment: (
                         <FlightTakeoffIcon color="action" sx={{ mr: 1 }} />
                       ),
+                      endAdornment: (
+                        <Fragment>
+                          {isFromAirportLoading ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </Fragment>
+                      ),
                     }}
                   />
                 )}
@@ -304,14 +325,24 @@ export default function GoogleFlights() {
             {/* To Airport */}
             <Grid item xs={12} sm={6}>
               <Autocomplete
-                options={toAirports || []}
+                options={
+                  toAirports.filter(
+                    (airport: AirportType) =>
+                      airport.label !== fromAirport?.label
+                  ) || []
+                }
                 value={toAirport}
                 onChange={handleToAirportChange}
+                loading={isToAirportLoading}
                 renderInput={(params) => (
                   <TextField
                     value={toAirport}
                     onChange={(event) =>
-                      debouncedFetchAirports(event, setToAirports)
+                      debouncedFetchAirports(
+                        event,
+                        setToAirports,
+                        setIsToAirportLoading
+                      )
                     }
                     {...params}
                     label="To"
@@ -323,6 +354,14 @@ export default function GoogleFlights() {
                       startAdornment: (
                         <FlightLandIcon color="action" sx={{ mr: 1 }} />
                       ),
+                      endAdornment: (
+                        <Fragment>
+                          {isToAirportLoading ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </Fragment>
+                      ),
                     }}
                   />
                 )}
@@ -333,6 +372,7 @@ export default function GoogleFlights() {
             <Grid item xs={12} sm={6}>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
+                  disablePast
                   label="Departure"
                   value={departureDate}
                   onChange={(newValue) => setDepartureDate(newValue)}
@@ -423,7 +463,7 @@ export default function GoogleFlights() {
           <Grid container spacing={4}>
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
-                Find cheap flights to Anywhere
+                Results:
               </Typography>
               <Paper elevation={2}>
                 {itineraryList?.map((item, index) => (

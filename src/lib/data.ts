@@ -4,9 +4,11 @@ import axios from 'axios';
 
 export const fetchAirports = async (
   event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  setValue: Dispatch<SetStateAction<never[]>>
+  setValue: Dispatch<SetStateAction<never[]>>,
+  setIsAirportLoading: Dispatch<SetStateAction<boolean>>
 ) => {
   const query = event.target.value.trim();
+  setIsAirportLoading(true);
 
   if (!query) {
     setValue([]);
@@ -25,11 +27,12 @@ export const fetchAirports = async (
       'x-rapidapi-host': 'sky-scrapper.p.rapidapi.com',
     },
   };
-  console.log('FETCHING');
 
   try {
     const response = await axios.request(options);
     const data = response.data?.data;
+
+    setIsAirportLoading(false);
 
     setValue(
       data?.map((airport: AirportData) => {
@@ -41,6 +44,7 @@ export const fetchAirports = async (
       })
     );
   } catch (error) {
+    setIsAirportLoading(false);
     console.error(error);
   }
 };
