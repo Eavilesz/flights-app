@@ -145,13 +145,18 @@ export default function GoogleFlights() {
 
     const formatedDepartureDate = departureDate
       ? `${departureDate.year()}-${
-          departureDate.month() + 1
-        }-${departureDate.date()}`
+          departureDate.month().toString().padStart(1, '0') + 1
+        }-${departureDate.date().toString().padStart(2, '0')}`
       : null;
 
     const formatedReturnDate = returnDate
-      ? `${returnDate.year()}-${returnDate.month() + 1}-${returnDate.date()}`
+      ? `${returnDate.year()}-${
+          returnDate.month().toString().padStart(1, '0') + 1
+        }-${returnDate.date().toString().padStart(2, '0')}`
       : null;
+
+    console.log('formatedDepartureDate:', formatedDepartureDate);
+    console.log('formatedReturnDate:', formatedReturnDate);
 
     const options = {
       method: 'GET',
@@ -179,6 +184,8 @@ export default function GoogleFlights() {
     try {
       const response = await axios.request(options);
       const itineraries = response.data.data?.itineraries;
+
+      console.log('response:', response);
 
       const processedItineraries = itineraries.map((itinerary: Itinerary) => {
         const legs = itinerary.legs[0];
@@ -211,7 +218,7 @@ export default function GoogleFlights() {
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
         setvalue: Dispatch<SetStateAction<never[]>>,
         setIsAirportLoading: Dispatch<SetStateAction<boolean>>
-      ) => {
+      ): void => {
         fetchAirports(event, setvalue, setIsAirportLoading);
       },
       100
